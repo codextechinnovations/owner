@@ -36,7 +36,7 @@ const roomTypes = [
   { value: 'single', label: 'Single Sharing', icon: <Person />, beds: 1, description: '1 bed per room - Best for privacy' },
   { value: 'double', label: 'Double Sharing', icon: <Groups />, beds: 2, description: '2 beds per room - Share & save' },
   { value: 'triple', label: 'Triple Sharing', icon: <Hotel />, beds: 3, description: '3 beds per room - Budget friendly' },
-  { value: 'Four', label: '4 Sharing', icon: <FourK />, beds: 4, description: '4 beds per room - Most affordable' },
+  { value: 'four', label: '4 Sharing', icon: <FourK />, beds: 4, description: '4 beds per room - Most affordable' },
 ];
 
 const initialBulkForm = {
@@ -250,7 +250,7 @@ const BulkAddRooms = () => {
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {roomTypes.map((type) => {
           const typeColor = getTypeColor(type.value);
-          const hasRooms = (bulkForm[type.value].count || 0) > 0;
+          const hasRooms = (bulkForm[type?.value]?.count || 0) > 0;
           
           return (
             <Grid item xs={12} md={6} key={type.value}>

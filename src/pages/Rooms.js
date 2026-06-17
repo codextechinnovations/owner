@@ -203,7 +203,7 @@ const Rooms = () => {
       } else if (type === 'bulk') {
         const roomsToCreate = [];
         Object.entries(bulkForm).forEach(([type, data]) => {
-          if (data.count > 0) {
+          if (data?.count > 0) {
             for (let i = 0; i < data.count; i++) {
               roomsToCreate.push({
                 pgId: selectedPg?._id,
