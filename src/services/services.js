@@ -53,6 +53,15 @@ export const paymentService = {
   getAll: async (params = {}) => {
     return await api.get('/payments', { params });
   },
+  getSummary: async (params = {}) => {
+    return await api.get('/payments/summary', { params });
+  },
+  getTenantHistory: async (tenantId) => {
+    return await api.get(`/payments/tenant/${tenantId}`);
+  },
+  getRentStatus: async (params = {}) => {
+    return await api.get('/payments/rent-status', { params });
+  },
   getById: async (id) => {
     return await api.get(`/payments/${id}`);
   },
@@ -109,5 +118,80 @@ export const tenantRequestService = {
   },
   delete: async (id) => {
     return await api.delete(`/tenantRequest/request/${id}`);
+  },
+};
+
+export const foodMenuService = {
+  getByPg: async (pgId) => {
+    return await api.get('/food-menu', { params: { pgId } });
+  },
+  saveBulk: async (data) => {
+    return await api.post('/food-menu/bulk', data);
+  },
+};
+
+export const bankAccountService = {
+  getAll: async (pgId) => {
+    return await api.get('/bank-accounts', { params: { pgId } });
+  },
+  create: async (data) => {
+    return await api.post('/bank-accounts', data);
+  },
+  update: async (id, data) => {
+    return await api.put(`/bank-accounts/${id}`, data);
+  },
+  delete: async (id) => {
+    return await api.delete(`/bank-accounts/${id}`);
+  },
+};
+
+export const noticeService = {
+  sendBulk: async (data) => {
+    return await api.post('/email/bulk', data);
+  },
+  sendBulkReminder: async (data) => {
+    return await api.post('/payment/reminder-bulk', data);
+  },
+};
+
+export const walletService = {
+  getWallet: async (pgId) => {
+    return await api.get(`/wallet/${pgId}`);
+  },
+  getTransactions: async (pgId, limit = 100) => {
+    return await api.get(`/wallet/transactions/${pgId}?limit=${limit}`);
+  },
+  getAutoReminder: async (pgId) => {
+    return await api.get(`/wallet/auto-reminder/${pgId}`);
+  },
+  updateAutoReminder: async (pgId, data) => {
+    return await api.patch(`/wallet/auto-reminder/${pgId}`, data);
+  },
+};
+
+export const subscriptionService = {
+  getStatus: async () => {
+    return await api.get('/pg-owner/subscription');
+  },
+};
+
+export const versionService = {
+  check: async () => {
+    return await api.get('/app/version?platform=web');
+  },
+};
+
+export const notificationService = {
+  getAll: async (params = {}) => {
+    return await api.get('/notifications', { params });
+  },
+  getUnreadCount: async (params = {}) => {
+    return await api.get('/notifications/unread-count', { params });
+  },
+  markRead: async (id) => {
+    return await api.put(`/notifications/${id}/read`);
+  },
+  delete: async (id) => {
+    return await api.delete(`/notifications/${id}`);
   },
 };

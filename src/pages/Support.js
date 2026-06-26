@@ -6,12 +6,6 @@ import {
   Typography,
   Grid,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Chip,
   IconButton,
   Button,
@@ -29,24 +23,17 @@ import {
   Divider,
   Alert,
   CircularProgress,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Tab,
+  Avatar,
   Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Search,
   Add,
   Visibility,
-  Phone,
-  Email,
-  Support as SupportIcon,
   Warning,
   CheckCircle,
   Schedule,
-  Error as ErrorIcon,
   HeadsetMic,
   BugReport,
   Payment,
@@ -54,20 +41,21 @@ import {
   Build,
   Person,
   Lightbulb,
-  MoreVert,
+  Support as SupportIcon,
+  Close,
 } from '@mui/icons-material';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
 
 const ISSUE_TYPES = [
-  { value: 'App Crash', label: 'App Crash', icon: <BugReport /> },
-  { value: 'Payment Issue', label: 'Payment Issue', icon: <Payment /> },
-  { value: 'Login Problem', label: 'Login Problem', icon: <Lock /> },
-  { value: 'Slow Performance', label: 'Slow Performance', icon: <Schedule /> },
-  { value: 'Maintenance Issue', label: 'Maintenance Issue', icon: <Build /> },
-  { value: 'Tenant Issue', label: 'Tenant Issue', icon: <Person /> },
-  { value: 'Other', label: 'Other', icon: <SupportIcon /> },
+  { value: 'App Crash', label: 'App Crash', icon: BugReport },
+  { value: 'Payment Issue', label: 'Payment Issue', icon: Payment },
+  { value: 'Login Problem', label: 'Login Problem', icon: Lock },
+  { value: 'Slow Performance', label: 'Slow Performance', icon: Schedule },
+  { value: 'Maintenance Issue', label: 'Maintenance Issue', icon: Build },
+  { value: 'Tenant Issue', label: 'Tenant Issue', icon: Person },
+  { value: 'Other', label: 'Other', icon: SupportIcon },
 ];
 
 const PRIORITIES = [
@@ -77,9 +65,9 @@ const PRIORITIES = [
 ];
 
 const STATUS_CONFIG = {
-  'open': { label: 'Open', color: colors.warning, icon: <Warning /> },
-  'in-progress': { label: 'In Progress', color: colors.primary[700], icon: <Schedule /> },
-  'resolved': { label: 'Resolved', color: colors.success, icon: <CheckCircle /> },
+  open: { label: 'Open', color: '#F59E0B', bg: '#FEF3C7', icon: Warning },
+  'in-progress': { label: 'In Progress', color: '#1D4ED8', bg: '#DBEAFE', icon: Schedule },
+  resolved: { label: 'Resolved', color: '#16A34A', bg: '#DCFCE7', icon: CheckCircle },
 };
 
 const initialFormData = {
@@ -93,10 +81,9 @@ const Support = () => {
   const { selectedPg, user } = useAuth();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState(0);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -104,7 +91,6 @@ const Support = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
-  const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
     fetchTickets();
@@ -131,22 +117,8 @@ const Support = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
-    switch (newValue) {
-      case 0:
-        setStatusFilter('all');
-        break;
-      case 1:
-        setStatusFilter('open');
-        break;
-      case 2:
-        setStatusFilter('in-progress');
-        break;
-      case 3:
-        setStatusFilter('resolved');
-        break;
-      default:
-        setStatusFilter('all');
-    }
+    const map = ['all', 'open', 'in-progress', 'resolved'];
+    setStatusFilter(map[newValue] || 'all');
   };
 
   const handleViewDetail = (ticket) => {
@@ -204,16 +176,16 @@ const Support = () => {
   };
 
   const getIssueIcon = (issueType) => {
-    const issue = ISSUE_TYPES.find(i => i.value === issueType);
-    return issue?.icon || <SupportIcon />;
+    const issue = ISSUE_TYPES.find((i) => i.value === issueType);
+    return issue?.icon || SupportIcon;
   };
 
   const getPriorityConfig = (priority) => {
-    return PRIORITIES.find(p => p.value === priority) || PRIORITIES[1];
+    return PRIORITIES.find((p) => p.value === priority) || PRIORITIES[1];
   };
 
   const getStatusConfig = (status) => {
-    return STATUS_CONFIG[status] || STATUS_CONFIG['open'];
+    return STATUS_CONFIG[status] || STATUS_CONFIG.open;
   };
 
   const filteredTickets = tickets.filter((t) => {
@@ -227,18 +199,31 @@ const Support = () => {
 
   const formatDate = (date) => {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return new Date(date).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
-  const openTickets = tickets.filter(t => t.status === 'open').length;
-  const inProgressTickets = tickets.filter(t => t.status === 'in-progress').length;
-  const resolvedTickets = tickets.filter(t => t.status === 'resolved').length;
+  const openTickets = tickets.filter((t) => t.status === 'open').length;
+  const inProgressTickets = tickets.filter((t) => t.status === 'in-progress').length;
+  const resolvedTickets = tickets.filter((t) => t.status === 'resolved').length;
+
+  const statItems = [
+    { label: 'Open', value: openTickets, color: colors.warning, icon: Warning, status: 'open', tab: 1 },
+    { label: 'In Progress', value: inProgressTickets, color: colors.primary[700], icon: Schedule, status: 'in-progress', tab: 2 },
+    { label: 'Resolved', value: resolvedTickets, color: colors.success, icon: CheckCircle, status: 'resolved', tab: 3 },
+    { label: 'Response', value: '<24h', color: colors.error, icon: HeadsetMic, status: null, tab: null },
+  ];
 
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, color: colors.text.primary, mb: 0.5 }}>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: colors.text.primary, mb: 0.5 }}>
             Support
           </Typography>
           <Typography variant="body2" sx={{ color: colors.text.secondary }}>
@@ -249,353 +234,209 @@ const Support = () => {
           variant="contained"
           startIcon={<Add />}
           onClick={handleAddOpen}
-          sx={{
-            background: `linear-gradient(135deg, ${colors.primary[700]}, ${colors.primary[800]})`,
-          }}
+          sx={{ background: `linear-gradient(135deg, ${colors.primary[700]}, ${colors.primary[800]})`, borderRadius: 3 }}
         >
-          New
+          New Ticket
         </Button>
       </Box>
 
-      <Grid container spacing={1} sx={{ mb: 2 }}>
-        <Grid item xs={6} sm={6} md={3}>
-          <Paper 
-            sx={{ 
-              p: 1.5, 
-              cursor: 'pointer',
-              borderLeft: `4px solid ${statusFilter === 'open' ? colors.primary[700] : colors.warning}`,
-              bgcolor: statusFilter === 'open' ? `${colors.primary[700]}10` : 'transparent'
-            }}
-            onClick={() => { setStatusFilter('open'); setActiveTab(1); }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Warning sx={{ fontSize: 20, color: colors.warning }} />
-              <Box>
-                <Typography variant="caption" sx={{ color: colors.text.secondary }}>Open</Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: colors.warning, lineHeight: 1.2 }}>
-                  {openTickets}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-        <Grid item xs={6} sm={6} md={3}>
-          <Paper 
-            sx={{ 
-              p: 1.5, 
-              cursor: 'pointer',
-              borderLeft: `4px solid ${statusFilter === 'in-progress' ? colors.primary[700] : colors.primary[700]}`,
-              bgcolor: statusFilter === 'in-progress' ? `${colors.primary[700]}10` : 'transparent'
-            }}
-            onClick={() => { setStatusFilter('in-progress'); setActiveTab(2); }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Schedule sx={{ fontSize: 20, color: colors.primary[700] }} />
-              <Box>
-                <Typography variant="caption" sx={{ color: colors.text.secondary }}>In Progress</Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: colors.primary[700] }}>
-                  {inProgressTickets}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-        <Grid item xs={6} sm={6} md={3}>
-          <Paper 
-            sx={{ 
-              p: 1.5, 
-              cursor: 'pointer',
-              borderLeft: `4px solid ${statusFilter === 'resolved' ? colors.primary[700] : colors.success}`,
-              bgcolor: statusFilter === 'resolved' ? `${colors.primary[700]}10` : 'transparent'
-            }}
-            onClick={() => { setStatusFilter('resolved'); setActiveTab(3); }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CheckCircle sx={{ fontSize: 20, color: colors.success }} />
-              <Box>
-                <Typography variant="caption" sx={{ color: colors.text.secondary }}>Resolved</Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: colors.success }}>
-                  {resolvedTickets}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-        <Grid item xs={6} sm={6} md={3}>
-          <Paper sx={{ p: 1.5, bgcolor: `${colors.error}10`, borderLeft: `4px solid ${colors.error}` }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <HeadsetMic sx={{ fontSize: 20, color: colors.error }} />
-              <Box>
-                <Typography variant="caption" sx={{ color: colors.text.secondary }}>Response</Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: colors.error }}>
-                  {'<'} 24 hrs
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
+      <Grid container spacing={1.5} sx={{ mb: 2 }}>
+        {statItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Grid item xs={6} md={3} key={item.label}>
+              <Card
+                onClick={() => item.tab !== null && handleTabChange(null, item.tab)}
+                sx={{
+                  borderRadius: 3,
+                  cursor: item.tab !== null ? 'pointer' : 'default',
+                  border: '1px solid',
+                  borderColor: activeTab === item.tab ? colors.primary[700] : '#F3F4F6',
+                  bgcolor: activeTab === item.tab ? `${colors.primary[700]}08` : 'white',
+                }}
+              >
+                <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <Avatar sx={{ bgcolor: `${item.color}15`, color: item.color, width: 40, height: 40 }}>
+                    <Icon fontSize="small" />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: colors.text.secondary }}>{item.label}</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: item.color, lineHeight: 1.2 }}>{item.value}</Typography>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
-      <Paper sx={{ mb: 3 }}>
-        <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable" allowScrollButtonsMobile sx={{ borderBottom: 1, borderColor: 'divider', px: 2 }}>
-          <Tab label={`All (${tickets.length})`} />
-          <Tab label={`Open (${openTickets})`} />
-          <Tab label={`In Progress (${inProgressTickets})`} />
-          <Tab label={`Resolved (${resolvedTickets})`} />
-        </Tabs>
-        <CardContent sx={{ py: 2 }}>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <TextField
-              placeholder="Search tickets..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              size="small"
-              sx={{ width: { xs: '100%', sm: 300 } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search sx={{ color: colors.text.secondary }} />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </Box>
+      <Card sx={{ mb: 2, borderRadius: 4 }}>
+        <CardContent sx={{ py: 1.5 }}>
+          <Tabs value={activeTab} onChange={handleTabChange} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 1.5 }}>
+            <Tab label={`All (${tickets.length})`} />
+            <Tab label={`Open (${openTickets})`} />
+            <Tab label={`In Progress (${inProgressTickets})`} />
+            <Tab label={`Resolved (${resolvedTickets})`} />
+          </Tabs>
+          <TextField
+            placeholder="Search tickets..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            size="small"
+            fullWidth
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search sx={{ color: colors.text.secondary }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+          />
         </CardContent>
-      </Paper>
-
-      <Card>
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ bgcolor: colors.border.main }}>
-                <TableCell sx={{ fontWeight: 600 }}>Ticket</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Type</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Priority</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Created</TableCell>
-                <TableCell sx={{ fontWeight: 600 }} align="center">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    {[...Array(6)].map((_, j) => (
-                      <TableCell key={j}><Skeleton /></TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : filteredTickets.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} sx={{ textAlign: 'center', py: 4 }}>
-                    <Box sx={{ py: 3 }}>
-                      <SupportIcon sx={{ fontSize: 48, color: colors.text.secondary, mb: 2 }} />
-                      <Typography variant="body1" sx={{ color: colors.text.secondary }}>
-                        {tickets.length === 0 ? 'No support tickets yet' : 'No tickets found matching your search'}
-                      </Typography>
-                      {tickets.length === 0 && (
-                        <Button 
-                          variant="outlined" 
-                          startIcon={<Add />}
-                          onClick={handleAddOpen}
-                          sx={{ mt: 2 }}
-                        >
-                          Create Your First Ticket
-                        </Button>
-                      )}
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredTickets
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((ticket) => {
-                    const priorityConfig = getPriorityConfig(ticket.priority);
-                    const statusConfig = getStatusConfig(ticket.status);
-                    return (
-                      <TableRow key={ticket._id} hover>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Box
-                              sx={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: 2,
-                                bgcolor: `${priorityConfig.color}15`,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: priorityConfig.color,
-                              }}
-                            >
-                              {getIssueIcon(ticket.issueType)}
-                            </Box>
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                {ticket.title}
-                              </Typography>
-                              <Typography variant="caption" sx={{ color: colors.text.secondary }}>
-                                #{ticket._id?.slice(-8).toUpperCase()}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={ticket.issueType}
-                            size="small"
-                            sx={{
-                              bgcolor: `${colors.primary[700]}15`,
-                              color: colors.primary[700],
-                              fontWeight: 500,
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={ticket.priority}
-                            size="small"
-                            sx={{
-                              bgcolor: `${priorityConfig.color}15`,
-                              color: priorityConfig.color,
-                              fontWeight: 500,
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={statusConfig.label}
-                            size="small"
-                            icon={React.cloneElement(statusConfig.icon, { sx: { fontSize: 16 } })}
-                            sx={{
-                              bgcolor: `${statusConfig.color}15`,
-                              color: statusConfig.color,
-                              fontWeight: 500,
-                              '& .MuiChip-icon': { color: statusConfig.color },
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {formatDate(ticket.createdAt)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <IconButton size="small" onClick={() => handleViewDetail(ticket)}>
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
       </Card>
 
+      {loading ? (
+        <Card sx={{ borderRadius: 4 }}>
+          <CardContent>
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} height={100} sx={{ mb: 2, borderRadius: 3 }} />
+            ))}
+          </CardContent>
+        </Card>
+      ) : filteredTickets.length === 0 ? (
+        <Card sx={{ borderRadius: 4, textAlign: 'center', py: 6 }}>
+          <Avatar sx={{ bgcolor: '#F3F4F6', color: '#9CA3AF', width: 64, height: 64, mx: 'auto', mb: 2 }}>
+            <SupportIcon sx={{ fontSize: 32 }} />
+          </Avatar>
+          <Typography variant="h6" sx={{ color: '#374151', fontWeight: 700, mb: 0.5 }}>
+            {tickets.length === 0 ? 'No support tickets yet' : 'No tickets found matching your search'}
+          </Typography>
+          {tickets.length === 0 && (
+            <Button variant="outlined" startIcon={<Add />} onClick={handleAddOpen} sx={{ mt: 2, borderRadius: 3 }}>
+              Create Your First Ticket
+            </Button>
+          )}
+        </Card>
+      ) : (
+        <Grid container spacing={2}>
+          {filteredTickets.map((ticket) => {
+            const priorityConfig = getPriorityConfig(ticket.priority);
+            const statusConfig = getStatusConfig(ticket.status);
+            const IssueIcon = getIssueIcon(ticket.issueType);
+            const StatusIcon = statusConfig.icon;
+
+            return (
+              <Grid item xs={12} md={6} key={ticket._id}>
+                <Card sx={{ borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.04)', border: '1px solid #F3F4F6' }}>
+                  <CardContent sx={{ p: 2.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.5 }}>
+                      <Avatar sx={{ bgcolor: `${priorityConfig.color}15`, color: priorityConfig.color, width: 44, height: 44 }}>
+                        <IssueIcon fontSize="small" />
+                      </Avatar>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#111827', lineHeight: 1.2 }} noWrap>
+                          {ticket.title}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#9CA3AF' }}>#{ticket._id?.slice(-8).toUpperCase()}</Typography>
+                      </Box>
+                      <Chip
+                        size="small"
+                        icon={<StatusIcon sx={{ fontSize: 14, color: `${statusConfig.color} !important` }} />}
+                        label={statusConfig.label}
+                        sx={{ bgcolor: statusConfig.bg, color: statusConfig.color, fontWeight: 700, fontSize: '10px' }}
+                      />
+                    </Box>
+
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+                      <Chip size="small" label={ticket.issueType} sx={{ bgcolor: `${colors.primary[700]}15`, color: colors.primary[700], fontWeight: 600, fontSize: '11px' }} />
+                      <Chip size="small" label={ticket.priority} sx={{ bgcolor: `${priorityConfig.color}15`, color: priorityConfig.color, fontWeight: 600, fontSize: '11px' }} />
+                    </Box>
+
+                    <Typography variant="body2" sx={{ color: '#6B7280', mb: 1.5, lineHeight: 1.5 }} noWrap>
+                      {ticket.description}
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pt: 1.5, borderTop: '1px solid #F3F4F6' }}>
+                      <Typography variant="caption" sx={{ color: '#9CA3AF' }}>{formatDate(ticket.createdAt)}</Typography>
+                      <Button size="small" startIcon={<Visibility />} onClick={() => handleViewDetail(ticket)} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 3 }}>
+                        View
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
+
       <Dialog open={detailOpen} onClose={() => setDetailOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>Ticket Details</Typography>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800 }}>
+          Ticket Details
           {selectedTicket && (
             <Chip
               label={getStatusConfig(selectedTicket.status).label}
-              icon={React.cloneElement(getStatusConfig(selectedTicket.status).icon, { sx: { fontSize: 16 } })}
+              icon={React.createElement(getStatusConfig(selectedTicket.status).icon, { sx: { fontSize: 16 } })}
               sx={{
-                bgcolor: `${getStatusConfig(selectedTicket.status).color}15`,
+                bgcolor: getStatusConfig(selectedTicket.status).bg,
                 color: getStatusConfig(selectedTicket.status).color,
-                fontWeight: 500,
-                '& .MuiChip-icon': { color: getStatusConfig(selectedTicket.status).color },
+                fontWeight: 700,
               }}
             />
           )}
+          <IconButton onClick={() => setDetailOpen(false)}><Close /></IconButton>
         </DialogTitle>
         <DialogContent dividers>
           {selectedTicket && (
             <Grid container spacing={3}>
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                  <Box
-                    sx={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: 3,
-                      bgcolor: `${getPriorityConfig(selectedTicket.priority).color}15`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: getPriorityConfig(selectedTicket.priority).color,
-                    }}
-                  >
-                    {React.cloneElement(getIssueIcon(selectedTicket.issueType), { sx: { fontSize: 30 } })}
-                  </Box>
+                  <Avatar sx={{ bgcolor: `${getPriorityConfig(selectedTicket.priority).color}15`, color: getPriorityConfig(selectedTicket.priority).color, width: 60, height: 60 }}>
+                    {React.createElement(getIssueIcon(selectedTicket.issueType), { sx: { fontSize: 30 } })}
+                  </Avatar>
                   <Box>
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                      {selectedTicket.title}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                      Ticket ID: #{selectedTicket._id?.slice(-8).toUpperCase()}
-                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700, color: '#111827' }}>{selectedTicket.title}</Typography>
+                    <Typography variant="body2" sx={{ color: '#9CA3AF' }}>Ticket ID: #{selectedTicket._id?.slice(-8).toUpperCase()}</Typography>
                   </Box>
                 </Box>
               </Grid>
 
               <Grid item xs={12} md={4}>
-                <Typography variant="subtitle2" sx={{ color: colors.text.secondary, mb: 1 }}>Issue Type</Typography>
+                <Typography variant="caption" sx={{ color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>Issue Type</Typography>
                 <Chip
                   label={selectedTicket.issueType}
-                  icon={React.cloneElement(getIssueIcon(selectedTicket.issueType), { sx: { fontSize: 16 } })}
-                  sx={{
-                    bgcolor: `${colors.primary[700]}15`,
-                    color: colors.primary[700],
-                    '& .MuiChip-icon': { color: colors.primary[700] },
-                  }}
+                  icon={React.createElement(getIssueIcon(selectedTicket.issueType), { sx: { fontSize: 16 } })}
+                  sx={{ mt: 0.5, bgcolor: `${colors.primary[700]}15`, color: colors.primary[700] }}
                 />
               </Grid>
-
               <Grid item xs={12} md={4}>
-                <Typography variant="subtitle2" sx={{ color: colors.text.secondary, mb: 1 }}>Priority</Typography>
-                <Chip
-                  label={selectedTicket.priority}
-                  sx={{
-                    bgcolor: `${getPriorityConfig(selectedTicket.priority).color}15`,
-                    color: getPriorityConfig(selectedTicket.priority).color,
-                    fontWeight: 500,
-                  }}
-                />
+                <Typography variant="caption" sx={{ color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>Priority</Typography>
+                <Chip label={selectedTicket.priority} sx={{ mt: 0.5, bgcolor: `${getPriorityConfig(selectedTicket.priority).color}15`, color: getPriorityConfig(selectedTicket.priority).color, fontWeight: 700 }} />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="caption" sx={{ color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>Created</Typography>
+                <Typography variant="body2" sx={{ mt: 0.5, color: '#111827' }}>{formatDate(selectedTicket.createdAt)}</Typography>
               </Grid>
 
-              <Grid item xs={12} md={4}>
-                <Typography variant="subtitle2" sx={{ color: colors.text.secondary, mb: 1 }}>Created</Typography>
-                <Typography variant="body2">{formatDate(selectedTicket.createdAt)}</Typography>
-              </Grid>
+              <Grid item xs={12}><Divider /></Grid>
 
               <Grid item xs={12}>
-                <Divider sx={{ my: 1 }} />
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" sx={{ color: colors.text.secondary, mb: 1 }}>Description</Typography>
-                <Paper sx={{ p: 2, bgcolor: colors.background.default }}>
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                    {selectedTicket.description}
-                  </Typography>
+                <Typography variant="caption" sx={{ color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>Description</Typography>
+                <Paper sx={{ p: 2, bgcolor: '#F9FAFB', borderRadius: 3, mt: 0.5 }}>
+                  <Typography variant="body2" sx={{ color: '#374151', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{selectedTicket.description}</Typography>
                 </Paper>
               </Grid>
 
               {selectedTicket.adminNotes && (
                 <>
+                  <Grid item xs={12}><Divider /></Grid>
                   <Grid item xs={12}>
-                    <Divider sx={{ my: 1 }} />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" sx={{ color: colors.text.secondary, mb: 1 }}>Admin Response</Typography>
-                    <Paper sx={{ p: 2, bgcolor: `${colors.success}10`, borderLeft: `4px solid ${colors.success}` }}>
-                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                        {selectedTicket.adminNotes}
-                      </Typography>
+                    <Typography variant="caption" sx={{ color: '#6B7280', fontWeight: 600, textTransform: 'uppercase' }}>Admin Response</Typography>
+                    <Paper sx={{ p: 2, bgcolor: '#F0FDF4', borderLeft: '4px solid #10B981', borderRadius: 3, mt: 0.5 }}>
+                      <Typography variant="body2" sx={{ color: '#374151', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{selectedTicket.adminNotes}</Typography>
                       {selectedTicket.resolvedAt && (
-                        <Typography variant="caption" sx={{ color: colors.text.secondary, display: 'block', mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#6B7280', display: 'block', mt: 1 }}>
                           Resolved on: {formatDate(selectedTicket.resolvedAt)}
                         </Typography>
                       )}
@@ -607,60 +448,45 @@ const Support = () => {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDetailOpen(false)}>Close</Button>
+          <Button onClick={() => setDetailOpen(false)} sx={{ borderRadius: 3 }}>Close</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>Create Support Ticket</Typography>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800 }}>
+          Create Support Ticket
+          <IconButton onClick={() => setAddOpen(false)}><Close /></IconButton>
         </DialogTitle>
         <DialogContent dividers>
-          {formError && <Alert severity="error" sx={{ mb: 2 }}>{formError}</Alert>}
-          {formSuccess && <Alert severity="success" sx={{ mb: 2 }}>{formSuccess}</Alert>}
-          
+          {formError && <Alert severity="error" sx={{ mb: 2, borderRadius: 3 }}>{formError}</Alert>}
+          {formSuccess && <Alert severity="success" sx={{ mb: 2, borderRadius: 3 }}>{formSuccess}</Alert>}
+
           <Grid container spacing={2} sx={{ mt: 0 }}>
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Subject"
-                name="title"
-                value={formData.title}
-                onChange={handleFormChange}
-                placeholder="Brief summary of your issue"
-                required
-              />
+              <TextField fullWidth size="small" label="Subject" name="title" value={formData.title} onChange={handleFormChange} placeholder="Brief summary of your issue" required sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} />
             </Grid>
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
+              <FormControl fullWidth size="small">
                 <InputLabel>Issue Type</InputLabel>
-                <Select
-                  name="issueType"
-                  value={formData.issueType}
-                  onChange={handleFormChange}
-                  label="Issue Type"
-                >
-                  {ISSUE_TYPES.map(issue => (
-                    <MenuItem key={issue.value} value={issue.value}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {issue.icon}
-                        {issue.label}
-                      </Box>
-                    </MenuItem>
-                  ))}
+                <Select name="issueType" value={formData.issueType} onChange={handleFormChange} label="Issue Type" sx={{ borderRadius: 3 }}>
+                  {ISSUE_TYPES.map((issue) => {
+                    const Icon = issue.icon;
+                    return (
+                      <MenuItem key={issue.value} value={issue.value}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Icon fontSize="small" /> {issue.label}
+                        </Box>
+                      </MenuItem>
+                    );
+                  })}
                 </Select>
               </FormControl>
             </Grid>
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
+              <FormControl fullWidth size="small">
                 <InputLabel>Priority</InputLabel>
-                <Select
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleFormChange}
-                  label="Priority"
-                >
-                  {PRIORITIES.map(priority => (
+                <Select name="priority" value={formData.priority} onChange={handleFormChange} label="Priority" sx={{ borderRadius: 3 }}>
+                  {PRIORITIES.map((priority) => (
                     <MenuItem key={priority.value} value={priority.value}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: priority.color }} />
@@ -672,30 +498,18 @@ const Support = () => {
               </FormControl>
             </Grid>
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description"
-                name="description"
-                value={formData.description}
-                onChange={handleFormChange}
-                multiline
-                rows={4}
-                placeholder="Please describe your issue in detail..."
-                required
-              />
+              <TextField fullWidth size="small" label="Description" name="description" value={formData.description} onChange={handleFormChange} multiline rows={4} placeholder="Please describe your issue in detail..." required sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }} />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setAddOpen(false)}>Cancel</Button>
-          <Button 
-            variant="contained" 
+          <Button onClick={() => setAddOpen(false)} sx={{ borderRadius: 3 }}>Cancel</Button>
+          <Button
+            variant="contained"
             startIcon={formLoading ? <CircularProgress size={20} /> : <SupportIcon />}
             onClick={handleSubmit}
             disabled={formLoading || formSuccess}
-            sx={{
-              background: `linear-gradient(135deg, ${colors.primary[700]}, ${colors.primary[800]})`,
-            }}
+            sx={{ background: `linear-gradient(135deg, ${colors.primary[700]}, ${colors.primary[800]})`, borderRadius: 3 }}
           >
             {formSuccess ? 'Submitted!' : 'Submit Ticket'}
           </Button>

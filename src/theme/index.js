@@ -102,7 +102,7 @@ export const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: "'Poppins', sans-serif",
+    fontFamily: "'Lato', sans-serif",
     h1: { fontWeight: 800, fontSize: '2.5rem', '@media (max-width:600px)': { fontSize: '2rem' } },
     h2: { fontWeight: 700, fontSize: '2rem', '@media (max-width:600px)': { fontSize: '1.5rem' } },
     h3: { fontWeight: 700, fontSize: '1.5rem', '@media (max-width:600px)': { fontSize: '1.25rem' } },
