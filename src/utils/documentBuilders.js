@@ -711,14 +711,15 @@ export const buildPropertyRulesHtml = (tenant, pgInfo, logoBase64) => {
   `;
 };
 
-export const buildIdCardHtml = (tenant, pgName, pgLogoUrl) => {
+export const buildIdCardHtml = (tenant, pgInfo, pgLogoUrl) => {
+  const pg = pgInfo || {};
   const tenantId = String(tenant._id).slice(-8).toUpperCase();
   const issuedOn = formatDateShort(tenant.checkInDate || tenant.checkinDate);
   const aadhaarFmt = tenant.aadhaar
     ? tenant.aadhaar.replace(/(\d{4})(\d{4})(\d{4})/, '$1 $2 $3')
     : 'XXXX XXXX XXXX';
   const photoUrl = tenant.passportPhoto || tenant.userPhoto || tenant.id_proof || '';
-  const displayPgName = pgName || 'Your PG';
+  const displayPgName = pg.name || 'Your PG';
 
   const pgLogoHtml = pgLogoUrl
     ? `<img src="${pgLogoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:10px;" />`
@@ -845,7 +846,7 @@ export const buildIdCardHtml = (tenant, pgName, pgLogoUrl) => {
             <div>
               <div class="back-section-title">Contact Details</div>
               <div class="back-info-grid">
-                <div class="back-info-item full"><div class="back-info-label">Address</div><div class="back-info-value">${pgInfo.address || ''}</div></div>
+                <div class="back-info-item full"><div class="back-info-label">Address</div><div class="back-info-value">${pg.address || ''}</div></div>
                 <div class="back-info-item"><div class="back-info-label">Issued On</div><div class="back-info-value">${issuedOn}</div></div>
                 <div class="back-info-item"><div class="back-info-label">Emergency</div><div class="back-info-value">${tenant.fatherPhone || tenant.motherPhone || tenant.guardianPhone || tenant.altPhone || '—'}</div></div>
               </div>

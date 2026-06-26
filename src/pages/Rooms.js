@@ -301,7 +301,7 @@ const Rooms = () => {
       { label: 'Occupied', key: (r) => getOccupiedBeds(r) },
       { label: 'Available', key: (r) => getAvailableBeds(r) },
       { label: 'Rent', key: 'rent' },
-      { label: 'Status', key: (r) => getStatus(r).label },
+      { label: 'Status', key: (r) => getRoomStatus(r) },
     ], filteredRooms);
   };
 

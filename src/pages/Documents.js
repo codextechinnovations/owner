@@ -158,7 +158,7 @@ const Documents = () => {
       } else if (activeTab === 'rules') {
         html = buildPropertyRulesHtml(tenant, pgInfo, logoBase64);
       } else if (activeTab === 'idcard') {
-        html = buildIdCardHtml(tenant, pgInfo.name, selectedPg?.logo);
+        html = buildIdCardHtml(tenant, pgInfo, selectedPg?.logo);
       }
       setHtmlContent(html);
       setPreviewOpen(true);
