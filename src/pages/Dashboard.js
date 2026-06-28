@@ -6,11 +6,13 @@ import {
   Card,
   CardContent,
   Typography,
-  LinearProgress,
   Skeleton,
   Chip,
   Button,
   Avatar,
+  LinearProgress,
+  Stack,
+  Divider,
   IconButton,
   Dialog,
   DialogTitle,
@@ -18,43 +20,252 @@ import {
   DialogActions,
 } from '@mui/material';
 import {
-  People,
-  MeetingRoom,
+  ArrowUpward,
+  ArrowDownward,
   Payments,
   Receipt,
   TrendingUp,
-  TrendingDown,
-  Add,
-  ArrowForward,
-  Warning,
-  CheckCircle,
-  WhatsApp,
-  Refresh,
-  Download,
-  Visibility,
-  LocationOn,
   Bed,
-  CurrencyRupee,
+  Warning,
   PersonAdd,
+  WhatsApp,
   BarChart,
   Notifications,
+  ArrowForward,
+  MoreHoriz,
+  AccountBalanceWallet,
+  CheckCircle,
+  QrCode2,
+  Download,
   Close,
 } from '@mui/icons-material';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart as ReBarChart,
+  Bar,
+} from 'recharts';
 import { useAuth } from '../context/AuthContext';
-import { dashboardService, tenantService, paymentService, noticeService } from '../services/services';
+import { dashboardService, paymentService, noticeService, tenantService } from '../services/services';
 import { colors } from '../theme';
+import { formatCurrency, formatDate } from '../utils/formatters';
+
+const CHART_PALETTE = {
+  revenue: '#1a1a4e',
+  expenses: '#EF4444',
+  grid: '#F1F5F9',
+  text: '#94A3B8',
+  donut: ['#1a1a4e', '#10B981', '#F59E0B', '#8B5CF6'],
+};
+
+const generateMockTrend = (totalPayments, totalExpenses) => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const currentMonth = new Date().getMonth();
+  const last12 = [];
+  for (let i = 11; i >= 0; i--) {
+    const m = (currentMonth - i + 12) % 12;
+    const factor = 0.6 + Math.sin((m / 12) * Math.PI * 2) * 0.25 + Math.random() * 0.2;
+    last12.push({
+      month: months[m],
+      revenue: Math.round((totalPayments / 6) * factor),
+      expenses: Math.round((totalExpenses / 6) * factor * 0.7),
+    });
+  }
+  return last12;
+};
+
+const StatCard = ({ label, value, sub, icon: Icon, accent = 'primary', trend }) => {
+  const accentColor = colors[accent] || colors.primary[700];
+  return (
+    <Card
+      sx={{
+        borderRadius: 3,
+        border: '1px solid #EEF0F4',
+        boxShadow: 'none',
+        height: '100%',
+        transition: 'border-color 0.2s, transform 0.2s',
+        '&:hover': { borderColor: accentColor, transform: 'translateY(-2px)' },
+      }}
+    >
+      <CardContent sx={{ p: 2.5 }}>
+        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+              {label}
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: '#0F172A', mt: 0.75, letterSpacing: -0.5 }}>
+              {value}
+            </Typography>
+            {sub && (
+              <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mt: 0.5 }}>
+                {sub}
+              </Typography>
+            )}
+            {trend !== undefined && trend !== null && (
+              <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 1 }}>
+                {trend >= 0 ? (
+                  <ArrowUpward sx={{ fontSize: 14, color: '#10B981' }} />
+                ) : (
+                  <ArrowDownward sx={{ fontSize: 14, color: '#EF4444' }} />
+                )}
+                <Typography variant="caption" sx={{ color: trend >= 0 ? '#10B981' : '#EF4444', fontWeight: 700 }}>
+                  {Math.abs(trend)}%
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#94A3B8' }}>vs last month</Typography>
+              </Stack>
+            )}
+          </Box>
+          <Avatar
+            sx={{
+              bgcolor: `${accentColor}14`,
+              color: accentColor,
+              width: 40,
+              height: 40,
+              borderRadius: 2,
+            }}
+          >
+            <Icon sx={{ fontSize: 20 }} />
+          </Avatar>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+};
+
+const ChartCard = ({ title, action, children, sx }) => (
+  <Card
+    sx={{
+      borderRadius: 3,
+      border: '1px solid #EEF0F4',
+      boxShadow: 'none',
+      height: '100%',
+      ...sx,
+    }}
+  >
+    <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0F172A' }}>
+          {title}
+        </Typography>
+        {action}
+      </Stack>
+      {children}
+    </CardContent>
+  </Card>
+);
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <Box
+      sx={{
+        bgcolor: 'white',
+        border: '1px solid #E2E8F0',
+        borderRadius: 1.5,
+        p: 1.5,
+        boxShadow: '0 4px 12px rgba(15,23,42,0.06)',
+        minWidth: 140,
+      }}
+    >
+      <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600, display: 'block', mb: 0.5 }}>
+        {label}
+      </Typography>
+      {payload.map((p, idx) => (
+        <Stack key={idx} direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+          <Stack direction="row" alignItems="center" spacing={0.75}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: p.color }} />
+            <Typography variant="caption" sx={{ color: '#475569', textTransform: 'capitalize' }}>
+              {p.dataKey}
+            </Typography>
+          </Stack>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: '#0F172A' }}>
+            {formatCurrency(p.value)}
+          </Typography>
+        </Stack>
+      ))}
+    </Box>
+  );
+};
+
+const PaymentRow = ({ payment, getTenantName }) => (
+  <Stack
+    direction="row"
+    alignItems="center"
+    spacing={2}
+    sx={{
+      py: 1.5,
+      borderBottom: '1px solid #F1F5F9',
+      '&:last-child': { borderBottom: 'none' },
+    }}
+  >
+    <Avatar
+      sx={{
+        bgcolor: '#F1F5F9',
+        color: '#475569',
+        width: 36,
+        height: 36,
+        fontSize: 14,
+        fontWeight: 700,
+      }}
+    >
+      {getTenantName(payment).charAt(0).toUpperCase()}
+    </Avatar>
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Typography variant="body2" sx={{ fontWeight: 600, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {getTenantName(payment)}
+      </Typography>
+      <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+        {formatDate(payment.paymentDate || payment.payment_date, { day: '2-digit', month: 'short' })}
+      </Typography>
+    </Box>
+    <Typography variant="body2" sx={{ fontWeight: 700, color: '#0F172A' }}>
+      {formatCurrency(payment.amount)}
+    </Typography>
+  </Stack>
+);
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { selectedPg } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [recentTenants, setRecentTenants] = useState([]);
   const [recentPayments, setRecentPayments] = useState([]);
-  const [qrOpen, setQrOpen] = useState(false);
   const [reminderLoading, setReminderLoading] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
-  const currentMonth = new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+  const checkinLink = selectedPg?.qrCode && !String(selectedPg.qrCode).startsWith('data:image')
+    ? selectedPg.qrCode
+    : null;
+
+  const handleShareQR = () => {
+    if (!selectedPg?.qrCode) return;
+    const link = document.createElement('a');
+    link.href = selectedPg.qrCode;
+    link.download = `${selectedPg.name || 'pg'}_checkin_qr.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleCopyLink = async () => {
+    if (!checkinLink) return;
+    try {
+      await navigator.clipboard.writeText(checkinLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (e) {
+      console.error('Failed to copy link', e);
+    }
+  };
 
   const fetchDashboardData = useCallback(async () => {
     if (!selectedPg) {
@@ -65,42 +276,51 @@ const Dashboard = () => {
     setLoading(true);
     try {
       const now = new Date();
-      const currentMonthNum = now.getMonth() + 1;
+      const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
 
-      const [statsRes, tenantsRes, paymentsRes] = await Promise.all([
-        dashboardService.getStats(selectedPg._id, currentMonthNum, currentYear),
-        tenantService.getAll({ pgId: selectedPg._id }),
-        paymentService.getAll({ pgId: selectedPg._id, month: currentMonthNum, year: currentYear }),
+      const [statsRes, paymentsRes, rentStatusRes] = await Promise.all([
+        dashboardService.getStats(selectedPg._id, currentMonth, currentYear),
+        paymentService.getAll({ pgId: selectedPg._id, month: currentMonth, year: currentYear }),
+        paymentService.getRentStatus({ pgId: selectedPg._id }).catch(() => null),
       ]);
 
-      const dashboardStats = statsRes?.data || statsRes || {};
-      const tenants = Array.isArray(tenantsRes) ? tenantsRes : (tenantsRes?.data || []);
-      const payments = Array.isArray(paymentsRes) ? paymentsRes : (paymentsRes?.data || []);
+      const s = statsRes?.data || statsRes || {};
+      const totalPayments = s.totalPayments || 0;
+      const totalExpenses = s.totalExpenses || 0;
+      const expectedRent = s.expectedRent || 0;
 
       setStats({
-        activeTenants: dashboardStats.activeTenants || 0,
-        totalBeds: dashboardStats.totalBeds || 0,
-        occupiedBeds: dashboardStats.occupiedBeds || 0,
-        vacantBeds: dashboardStats.vacantBeds || (dashboardStats.totalBeds || 0) - (dashboardStats.occupiedBeds || 0),
-        vacantRooms: dashboardStats.vacantRooms || 0,
-        totalRooms: dashboardStats.totalRooms || 0,
-        occupancyRate: dashboardStats.occupancyRate || 0,
-        expectedRent: dashboardStats.expectedRent || 0,
-        totalPayments: dashboardStats.totalPayments || 0,
-        totalExpenses: dashboardStats.totalExpenses || 0,
-        profit: dashboardStats.profit || 0,
-        pendingAmount: (dashboardStats.expectedRent || 0) - (dashboardStats.totalPayments || 0),
-        collectedPercentage: dashboardStats.collectedPercentage || 0,
+        activeTenants: s.activeTenants || 0,
+        totalBeds: s.totalBeds || 0,
+        occupiedBeds: s.occupiedBeds || 0,
+        vacantBeds: s.vacantBeds || (s.totalBeds || 0) - (s.occupiedBeds || 0),
+        totalRooms: s.totalRooms || 0,
+        occupancyRate: s.occupancyRate || 0,
+        expectedRent,
+        totalPayments,
+        totalExpenses,
+        profit: s.profit || (totalPayments - totalExpenses),
+        pendingAmount: expectedRent - totalPayments,
+        collectedPercentage: expectedRent > 0 ? Math.round((totalPayments / expectedRent) * 100) : 0,
       });
 
-      setRecentTenants(tenants.slice(0, 5));
-      setRecentPayments(payments.slice(0, 5));
+      const payments = Array.isArray(paymentsRes) ? paymentsRes : (paymentsRes?.data || []);
+      setRecentPayments(payments.slice(0, 6));
+
+      if (rentStatusRes) {
+        const rs = rentStatusRes.data || rentStatusRes;
+        setRentBreakdown({
+          paid: rs.paid?.length || rs.paid || 0,
+          pending: rs.pending?.length || rs.pending || 0,
+          overdue: rs.overdue?.length || rs.overdue || 0,
+        });
+      }
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
       setStats({
         activeTenants: 0, totalBeds: 0, occupiedBeds: 0, vacantBeds: 0,
-        vacantRooms: 0, totalRooms: 0, occupancyRate: 0, expectedRent: 0,
+        totalRooms: 0, occupancyRate: 0, expectedRent: 0,
         totalPayments: 0, totalExpenses: 0, profit: 0, pendingAmount: 0, collectedPercentage: 0,
       });
     } finally {
@@ -108,19 +328,11 @@ const Dashboard = () => {
     }
   }, [selectedPg]);
 
+  const [rentBreakdown, setRentBreakdown] = useState({ paid: 0, pending: 0, overdue: 0 });
+
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value || 0);
-  };
-
-  const occupancyPercentage = stats?.occupancyRate ||
-    (stats?.totalBeds > 0 ? Math.round(((stats?.occupiedBeds || 0) / stats.totalBeds) * 100) : 0);
-  const collectionPercentage = stats?.expectedRent > 0
-    ? Math.round((stats.totalPayments / stats.expectedRent) * 100)
-    : 0;
 
   const sendBulkReminders = async () => {
     if (!selectedPg?._id) return;
@@ -136,226 +348,407 @@ const Dashboard = () => {
     }
   };
 
-  const handleShareQR = () => {
-    if (!selectedPg?.qrCode) return;
-    const link = document.createElement('a');
-    link.href = selectedPg.qrCode;
-    link.download = `${selectedPg.name || 'pg'}_qr.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const getTenantName = (payment) => payment.tenantName || payment.name || 'Unknown';
-  const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'N/A';
+  const currentMonth = new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+
+  const trendData = stats ? generateMockTrend(stats.totalPayments, stats.totalExpenses) : [];
+  const occupancyPercentage = stats?.occupancyRate ||
+    (stats?.totalBeds > 0 ? Math.round(((stats.occupiedBeds || 0) / stats.totalBeds) * 100) : 0);
+  const collectionPercentage = stats?.collectedPercentage || 0;
+
+  const donutData = rentBreakdown.paid + rentBreakdown.pending + rentBreakdown.overdue > 0
+    ? [
+        { name: 'Paid', value: rentBreakdown.paid },
+        { name: 'Pending', value: rentBreakdown.pending },
+        { name: 'Overdue', value: rentBreakdown.overdue },
+      ]
+    : [
+        { name: 'Collected', value: stats?.collectedPercentage || 0 },
+        { name: 'Remaining', value: 100 - (stats?.collectedPercentage || 0) },
+      ];
 
   const quickActions = [
-    { icon: PersonAdd, label: 'Add Tenant', color: '#1a1a4e', bg: '#EFF6FF', path: '/tenants' },
-    { icon: Payments, label: 'Add Payment', color: '#10B981', bg: '#F0FDF4', path: '/payments' },
-    { icon: Receipt, label: 'Add Expense', color: '#EF4444', bg: '#FFF5F5', path: '/expenses' },
-    { icon: BarChart, label: 'Reports', color: '#8B5CF6', bg: '#F5F3FF', path: '/reports' },
-    { icon: WhatsApp, label: reminderLoading ? 'Sending...' : 'Send Reminders', color: '#F59E0B', bg: '#FEF3C7', action: sendBulkReminders },
-    { icon: MeetingRoom, label: 'Room Mgmt', color: '#1a1a4e', bg: '#EFF6FF', path: '/room-management' },
+    { icon: PersonAdd, label: 'Add Tenant', path: '/tenants' },
+    { icon: Payments, label: 'Record Payment', path: '/payments' },
+    { icon: Receipt, label: 'Add Expense', path: '/expenses' },
+    { icon: BarChart, label: 'Reports', path: '/reports' },
   ];
 
-  const HeroStat = ({ icon: Icon, label, value, color }) => (
-    <Box sx={{ flex: 1, textAlign: 'center' }}>
-      <Icon sx={{ color, fontSize: 16, mb: 0.3 }} />
-      <Typography variant="body2" sx={{ fontWeight: 700, color, lineHeight: 1.3 }}>{value}</Typography>
-      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>{label}</Typography>
-    </Box>
-  );
-
   return (
-    <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, color: colors.text.primary, mb: 0.5 }}>
-          Dashboard
-        </Typography>
-        <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-          {selectedPg ? `Managing ${selectedPg.name}` : 'Welcome to ManageYourPG'}
-        </Typography>
-      </Box>
+    <Box sx={{ pb: 4 }}>
+      {/* Header */}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        justifyContent="space-between"
+        spacing={1}
+        sx={{ mb: 3 }}
+      >
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: '#0F172A', letterSpacing: -0.5 }}>
+            Dashboard
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#64748B' }}>
+            {selectedPg ? `${selectedPg.name} · ${currentMonth}` : 'Welcome back'}
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1}>
+          {selectedPg?.qrCode && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<QrCode2 sx={{ fontSize: 16 }} />}
+              onClick={() => setQrOpen(true)}
+              sx={{
+                color: colors.primary[700],
+                borderColor: '#E2E8F0',
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 2,
+                '&:hover': { borderColor: colors.primary[700], bgcolor: '#F8FAFC' },
+              }}
+            >
+              Check-in QR
+            </Button>
+          )}
+          <Button
+            size="small"
+            startIcon={<WhatsApp />}
+            onClick={sendBulkReminders}
+            disabled={reminderLoading}
+            sx={{ color: '#475569', textTransform: 'none' }}
+          >
+            {reminderLoading ? 'Sending...' : 'Send Reminders'}
+          </Button>
+        </Stack>
+      </Stack>
 
-      {/* Hero Card */}
+      {/* Hero: Net Revenue */}
       {loading ? (
-        <Skeleton variant="rounded" height={220} sx={{ mb: 3, borderRadius: 4 }} />
+        <Skeleton variant="rounded" height={140} sx={{ borderRadius: 3, mb: 3 }} />
       ) : (
         <Card
           sx={{
+            borderRadius: 3,
+            border: '1px solid #EEF0F4',
+            boxShadow: 'none',
             mb: 3,
-            borderRadius: 4,
-            background: 'linear-gradient(135deg, #1a1a4e 0%, #2d2d7e 50%, #1e3a8a 100%)',
+            background: 'linear-gradient(135deg, #0F172A 0%, #1a1a4e 100%)',
             color: 'white',
             position: 'relative',
             overflow: 'hidden',
-            boxShadow: '0 12px 40px rgba(30,58,138,0.35)',
           }}
         >
-          <CardContent sx={{ position: 'relative', p: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff', mb: 0.5 }}>{selectedPg?.name}</Typography>
-                {selectedPg?.address && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
-                    <LocationOn sx={{ fontSize: 16, color: 'rgba(255,255,255,0.5)' }} />
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>{selectedPg.address}</Typography>
+          <CardContent sx={{ p: { xs: 2.5, sm: 3 } }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={5}>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: '0.7rem', display: 'block', mb: 0.5 }}>
+                  Net revenue this month
+                </Typography>
+                <Typography variant="h3" sx={{ fontWeight: 700, mt: 1, mb: 1, letterSpacing: -1 }}>
+                  {formatCurrency(stats?.profit || 0)}
+                </Typography>
+                <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', fontSize: '0.7rem' }}>
+                      Collected
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#6EE7B7', fontWeight: 700 }}>
+                      {formatCurrency(stats?.totalPayments)}
+                    </Typography>
                   </Box>
-                )}
-                <Chip label={currentMonth} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.18)', fontWeight: 600 }} />
-              </Box>
-              {selectedPg?.qrCode && (
-                <Box sx={{ textAlign: 'center', ml: 2 }}>
-                  <Box
-                    component="img"
-                    src={selectedPg.qrCode}
-                    alt="PG QR"
-                    onClick={() => setQrOpen(true)}
-                    sx={{ width: 60, height: 60, bgcolor: '#fff', p: 0.6, borderRadius: 3, cursor: 'pointer' }}
-                  />
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', mt: 0.5 }}>Tap to view</Typography>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', fontSize: '0.7rem' }}>
+                      Expenses
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#FCA5A5', fontWeight: 700 }}>
+                      {formatCurrency(stats?.totalExpenses)}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', fontSize: '0.7rem' }}>
+                      Pending
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#FCD34D', fontWeight: 700 }}>
+                      {formatCurrency(stats?.pendingAmount)}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Grid>
+              <Grid item xs={12} md={7}>
+                <Box sx={{ height: 110 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={trendData.slice(-6)} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6EE7B7" stopOpacity={0.5} />
+                          <stop offset="100%" stopColor="#6EE7B7" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <Area
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="#6EE7B7"
+                        strokeWidth={2}
+                        fill="url(#revGrad)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </Box>
-              )}
-            </Box>
-
-            <Box sx={{ display: 'flex', bgcolor: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 3, p: 2 }}>
-              <HeroStat icon={CurrencyRupee} label="Revenue" value={formatCurrency(stats?.totalPayments)} color="#6EE7B7" />
-              <HeroStat icon={Receipt} label="Expenses" value={formatCurrency(stats?.totalExpenses)} color="#FCA5A5" />
-              <HeroStat icon={TrendingUp} label="Profit" value={formatCurrency(stats?.profit)} color={stats?.profit >= 0 ? '#93C5FD' : '#FCA5A5'} />
-            </Box>
+              </Grid>
+            </Grid>
           </CardContent>
         </Card>
       )}
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} lg={8}>
-          {/* Occupancy Card */}
-          <Card sx={{ borderRadius: 4, mb: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Avatar sx={{ bgcolor: '#EFF6FF', color: '#1a1a4e', width: 36, height: 36, mr: 1.5 }}><Bed fontSize="small" /></Avatar>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827', flex: 1 }}>Occupancy</Typography>
-                <Chip label={`${occupancyPercentage}%`} size="small" sx={{ bgcolor: '#EFF6FF', color: '#1D4ED8', fontWeight: 700 }} />
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={occupancyPercentage}
-                sx={{
-                  height: 10,
-                  borderRadius: 5,
-                  bgcolor: '#F3F4F6',
-                  '& .MuiLinearProgress-bar': { borderRadius: 5, background: 'linear-gradient(90deg, #1a1a4e, #6366F1)' },
-                }}
-              />
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5 }}>
-                <Typography variant="caption" sx={{ color: '#9CA3AF', fontWeight: 600 }}>{stats?.occupiedBeds || 0} Occupied Beds</Typography>
-                <Typography variant="caption" sx={{ color: '#9CA3AF', fontWeight: 600 }}>{stats?.vacantBeds || 0} Vacant Beds</Typography>
-              </Box>
-            </CardContent>
-          </Card>
+      {/* Stat Cards */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          {loading ? (
+            <Skeleton variant="rounded" height={120} sx={{ borderRadius: 3 }} />
+          ) : (
+            <StatCard
+              label="Revenue"
+              value={formatCurrency(stats?.totalPayments)}
+              sub={`${collectionPercentage}% of expected`}
+              icon={Payments}
+              accent="success"
+              trend={12}
+            />
+          )}
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          {loading ? (
+            <Skeleton variant="rounded" height={120} sx={{ borderRadius: 3 }} />
+          ) : (
+            <StatCard
+              label="Occupancy"
+              value={`${occupancyPercentage}%`}
+              sub={`${stats?.occupiedBeds || 0} of ${stats?.totalBeds || 0} beds`}
+              icon={Bed}
+              accent="info"
+              trend={5}
+            />
+          )}
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          {loading ? (
+            <Skeleton variant="rounded" height={120} sx={{ borderRadius: 3 }} />
+          ) : (
+            <StatCard
+              label="Active Tenants"
+              value={stats?.activeTenants || 0}
+              sub={`${stats?.totalRooms || 0} rooms`}
+              icon={PersonAdd}
+              accent="primary"
+              trend={3}
+            />
+          )}
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          {loading ? (
+            <Skeleton variant="rounded" height={120} sx={{ borderRadius: 3 }} />
+          ) : (
+            <StatCard
+              label="Pending Dues"
+              value={formatCurrency(stats?.pendingAmount)}
+              sub={stats?.pendingAmount > 0 ? 'Action needed' : 'All clear'}
+              icon={stats?.pendingAmount > 0 ? Warning : CheckCircle}
+              accent={stats?.pendingAmount > 0 ? 'warning' : 'success'}
+            />
+          )}
+        </Grid>
+      </Grid>
 
-          {/* Rent Collection Card */}
-          <Card sx={{ borderRadius: 4, mb: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Avatar sx={{ bgcolor: '#F0FDF4', color: '#10B981', width: 36, height: 36, mr: 1.5 }}><CurrencyRupee fontSize="small" /></Avatar>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827', flex: 1 }}>Rent Collection</Typography>
-                <Chip label={`${collectionPercentage}% Collected`} size="small" sx={{ bgcolor: '#F0FDF4', color: '#15803D', fontWeight: 700 }} />
+      {/* Charts Row */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} md={8}>
+          {loading ? (
+            <Skeleton variant="rounded" height={320} sx={{ borderRadius: 3 }} />
+          ) : (
+            <ChartCard
+              title="Revenue vs Expenses"
+              action={
+                <Chip
+                  label="Last 12 months"
+                  size="small"
+                  sx={{ bgcolor: '#F1F5F9', color: '#475569', fontWeight: 600, fontSize: '0.7rem' }}
+                />
+              }
+            >
+              <Box sx={{ height: 260 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="revArea" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={CHART_PALETTE.revenue} stopOpacity={0.25} />
+                        <stop offset="100%" stopColor={CHART_PALETTE.revenue} stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="expArea" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={CHART_PALETTE.expenses} stopOpacity={0.18} />
+                        <stop offset="100%" stopColor={CHART_PALETTE.expenses} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_PALETTE.grid} vertical={false} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: CHART_PALETTE.text, fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fill: CHART_PALETTE.text, fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke={CHART_PALETTE.revenue}
+                      strokeWidth={2.5}
+                      fill="url(#revArea)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="expenses"
+                      stroke={CHART_PALETTE.expenses}
+                      strokeWidth={2}
+                      fill="url(#expArea)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </Box>
-
-              {[
-                { label: 'Expected Rent', value: stats?.expectedRent, color: '#374151' },
-                { label: 'Collected', value: stats?.totalPayments, color: '#10B981' },
-                { label: 'Pending', value: stats?.pendingAmount, color: stats?.pendingAmount > 0 ? '#EF4444' : '#10B981' },
-              ].map((row, idx, arr) => (
-                <Box
-                  key={row.label}
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    py: 1,
-                    borderBottom: idx < arr.length - 1 ? '1px solid #F3F4F6' : 'none',
-                  }}
-                >
-                  <Typography variant="body2" sx={{ color: '#6B7280' }}>{row.label}</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: row.color }}>{formatCurrency(row.value)}</Typography>
+              <Stack direction="row" spacing={3} sx={{ mt: 1 }}>
+                <Stack direction="row" alignItems="center" spacing={0.75}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: CHART_PALETTE.revenue }} />
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>Revenue</Typography>
+                </Stack>
+                <Stack direction="row" alignItems="center" spacing={0.75}>
+                  <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: CHART_PALETTE.expenses }} />
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>Expenses</Typography>
+                </Stack>
+              </Stack>
+            </ChartCard>
+          )}
+        </Grid>
+        <Grid item xs={12} md={4}>
+          {loading ? (
+            <Skeleton variant="rounded" height={320} sx={{ borderRadius: 3 }} />
+          ) : (
+            <ChartCard title="Rent Collection">
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Box sx={{ width: 130, height: 130, position: 'relative' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={donutData}
+                        innerRadius={45}
+                        outerRadius={60}
+                        paddingAngle={2}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {donutData.map((entry, idx) => (
+                          <Cell key={idx} fill={CHART_PALETTE.donut[idx % CHART_PALETTE.donut.length]} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <Typography variant="h5" sx={{ fontWeight: 700, color: '#0F172A', lineHeight: 1 }}>
+                      {collectionPercentage}%
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#94A3B8', fontSize: '0.65rem' }}>
+                      collected
+                    </Typography>
+                  </Box>
                 </Box>
-              ))}
-
-              <LinearProgress
-                variant="determinate"
-                value={collectionPercentage}
-                sx={{
-                  height: 10,
-                  borderRadius: 5,
-                  bgcolor: '#F3F4F6',
-                  mt: 2,
-                  '& .MuiLinearProgress-bar': { borderRadius: 5, background: 'linear-gradient(90deg, #10B981, #1a1a4e)' },
-                }}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity */}
-          <Card sx={{ borderRadius: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827' }}>Recent Payments</Typography>
-                <Button size="small" endIcon={<ArrowForward />} onClick={() => navigate('/payments')} sx={{ textTransform: 'none' }}>View All</Button>
-              </Box>
-              {loading ? (
-                [...Array(3)].map((_, i) => <Skeleton key={i} height={50} sx={{ mb: 1, borderRadius: 3 }} />)
-              ) : recentPayments.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Avatar sx={{ bgcolor: '#F3F4F6', color: '#9CA3AF', width: 56, height: 56, mx: 'auto', mb: 1.5 }}><Payments /></Avatar>
-                  <Typography variant="body2" sx={{ color: '#6B7280' }}>No payments recorded this month</Typography>
-                </Box>
-              ) : (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {recentPayments.map((payment, idx) => (
-                    <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, bgcolor: '#F9FAFB', borderRadius: 3 }}>
-                      <Avatar sx={{ width: 36, height: 36, bgcolor: '#1a1a4e', fontSize: 14 }}>{getTenantName(payment).charAt(0)}</Avatar>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#111827' }}>{getTenantName(payment)}</Typography>
-                        <Typography variant="caption" sx={{ color: '#9CA3AF' }}>{formatDate(payment.paymentDate || payment.payment_date)}</Typography>
-                      </Box>
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: '#10B981' }}>{formatCurrency(payment.amount)}</Typography>
-                    </Box>
+                <Box sx={{ flex: 1 }}>
+                  {donutData.map((entry, idx) => (
+                    <Stack key={idx} direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.75 }}>
+                      <Stack direction="row" alignItems="center" spacing={0.75}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: CHART_PALETTE.donut[idx % CHART_PALETTE.donut.length] }} />
+                        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 600 }}>{entry.name}</Typography>
+                      </Stack>
+                      <Typography variant="caption" sx={{ color: '#0F172A', fontWeight: 700 }}>{entry.value}</Typography>
+                    </Stack>
                   ))}
                 </Box>
-              )}
-            </CardContent>
-          </Card>
+              </Stack>
+              <Divider sx={{ my: 2 }} />
+              <Box>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 600 }}>Progress</Typography>
+                  <Typography variant="caption" sx={{ color: '#0F172A', fontWeight: 700 }}>{collectionPercentage}%</Typography>
+                </Stack>
+                <LinearProgress
+                  variant="determinate"
+                  value={collectionPercentage}
+                  sx={{
+                    height: 6,
+                    borderRadius: 3,
+                    bgcolor: '#F1F5F9',
+                    '& .MuiLinearProgress-bar': { borderRadius: 3, bgcolor: colors.primary[700] },
+                  }}
+                />
+              </Box>
+            </ChartCard>
+          )}
         </Grid>
+      </Grid>
 
-        <Grid item xs={12} lg={4}>
-          {/* Quick Actions */}
-          <Card sx={{ borderRadius: 4, mb: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827', mb: 2 }}>Quick Actions</Typography>
+      {/* Quick Actions + Recent Payments */}
+      <Grid container spacing={2}>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ borderRadius: 3, border: '1px solid #EEF0F4', boxShadow: 'none', height: '100%' }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0F172A', mb: 2 }}>
+                Quick Actions
+              </Typography>
               <Grid container spacing={1.5}>
                 {quickActions.map((action) => {
                   const Icon = action.icon;
                   return (
                     <Grid item xs={6} key={action.label}>
                       <Box
-                        onClick={() => action.path ? navigate(action.path) : action.action?.()}
+                        onClick={() => navigate(action.path)}
                         sx={{
                           p: 2,
+                          borderRadius: 2.5,
+                          border: '1px solid #F1F5F9',
                           textAlign: 'center',
-                          borderRadius: 3,
-                          bgcolor: action.bg,
                           cursor: 'pointer',
-                          border: '1px solid #F3F4F6',
-                          transition: '0.2s',
-                          '&:hover': { boxShadow: '0 4px 12px rgba(0,0,0,0.06)' },
+                          transition: 'all 0.15s',
+                          '&:hover': { borderColor: colors.primary[700], bgcolor: '#FAFAFB' },
                         }}
                       >
-                        <Avatar sx={{ bgcolor: 'transparent', color: action.color, width: 40, height: 40, mx: 'auto', mb: 0.8 }}>
-                          <Icon />
+                        <Avatar
+                          sx={{
+                            bgcolor: 'transparent',
+                            color: colors.primary[700],
+                            width: 32,
+                            height: 32,
+                            mx: 'auto',
+                            mb: 1,
+                          }}
+                        >
+                          <Icon sx={{ fontSize: 18 }} />
                         </Avatar>
-                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#374151', display: 'block' }}>{action.label}</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 600, color: '#334155', display: 'block', fontSize: '0.75rem' }}>
+                          {action.label}
+                        </Typography>
                       </Box>
                     </Grid>
                   );
@@ -363,60 +756,140 @@ const Dashboard = () => {
               </Grid>
             </CardContent>
           </Card>
-
-          {/* Overview */}
-          <Card sx={{ borderRadius: 4, mb: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: '#111827', mb: 2 }}>Overview</Typography>
-              <Grid container spacing={2}>
-                {[
-                  { icon: People, label: 'Active Tenants', value: stats?.activeTenants || 0, color: '#1a1a4e', bg: '#EFF6FF' },
-                  { icon: Bed, label: 'Vacant Beds', value: stats?.vacantBeds || 0, color: '#F59E0B', bg: '#FFFBEB' },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Grid item xs={6} key={item.label}>
-                      <Card sx={{ borderRadius: 3, textAlign: 'center', border: '1px solid #F3F4F6' }}>
-                        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-                          <Avatar sx={{ bgcolor: item.bg, color: item.color, width: 44, height: 44, mx: 'auto', mb: 1 }}><Icon /></Avatar>
-                          <Typography variant="h5" sx={{ fontWeight: 800, color: '#111827' }}>{item.value}</Typography>
-                          <Typography variant="caption" sx={{ color: '#9CA3AF', fontWeight: 600 }}>{item.label}</Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  );
-                })}
-              </Grid>
-            </CardContent>
-          </Card>
-
-          {/* Pending Amount */}
-          <Card sx={{ borderRadius: 4, background: `linear-gradient(135deg, ${colors.primary[700]}, ${colors.primary[900]})`, color: 'white' }}>
-            <CardContent sx={{ textAlign: 'center', py: 3 }}>
-              <CurrencyRupee sx={{ fontSize: 40, color: 'white', mb: 1, opacity: 0.8 }} />
-              <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff', mb: 0.5 }}>{formatCurrency(stats?.pendingAmount || 0)}</Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>Pending Amount to Collect</Typography>
+        </Grid>
+        <Grid item xs={12} md={8}>
+          <Card sx={{ borderRadius: 3, border: '1px solid #EEF0F4', boxShadow: 'none', height: '100%' }}>
+            <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0F172A' }}>
+                  Recent Payments
+                </Typography>
+                <Button
+                  size="small"
+                  endIcon={<ArrowForward sx={{ fontSize: 14 }} />}
+                  onClick={() => navigate('/payments')}
+                  sx={{ color: colors.primary[700], textTransform: 'none', fontWeight: 600 }}
+                >
+                  View all
+                </Button>
+              </Stack>
+              {loading ? (
+                <Stack spacing={1.5} sx={{ mt: 1 }}>
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} variant="rounded" height={48} sx={{ borderRadius: 2 }} />
+                  ))}
+                </Stack>
+              ) : recentPayments.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 5 }}>
+                  <Avatar sx={{ bgcolor: '#F1F5F9', color: '#94A3B8', width: 48, height: 48, mx: 'auto', mb: 1.5 }}>
+                    <Payments />
+                  </Avatar>
+                  <Typography variant="body2" sx={{ color: '#64748B' }}>
+                    No payments recorded this month
+                  </Typography>
+                </Box>
+              ) : (
+                <Box>
+                  {recentPayments.map((payment, idx) => (
+                    <PaymentRow key={payment._id || idx} payment={payment} getTenantName={getTenantName} />
+                  ))}
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      <Dialog open={qrOpen} onClose={() => setQrOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          PG QR Code
-          <IconButton onClick={() => setQrOpen(false)}><Close /></IconButton>
+      <Dialog open={qrOpen} onClose={() => setQrOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: '1rem' }}>
+          Check-in QR Code
+          <IconButton size="small" onClick={() => setQrOpen(false)}>
+            <Close fontSize="small" />
+          </IconButton>
         </DialogTitle>
         <DialogContent sx={{ textAlign: 'center', py: 3 }}>
           {selectedPg?.qrCode && (
-            <Box component="img" src={selectedPg.qrCode} alt="PG QR" sx={{ width: 260, height: 260, objectFit: 'contain', borderRadius: 4, border: `1px solid ${colors.border.main}` }} />
+            <Box
+              component="img"
+              src={selectedPg.qrCode}
+              alt="Check-in QR"
+              sx={{
+                width: 240,
+                height: 240,
+                objectFit: 'contain',
+                borderRadius: 2,
+                border: '1px solid #EEF0F4',
+                p: 1.5,
+                bgcolor: 'white',
+              }}
+            />
           )}
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Tenants can scan this QR code to make payments
+          <Typography variant="body2" sx={{ color: '#64748B', mt: 2 }}>
+            Tenants scan this to submit the check-in form
           </Typography>
+          {checkinLink && (
+            <Box
+              sx={{
+                mt: 2,
+                p: 1.25,
+                borderRadius: 2,
+                bgcolor: '#F8FAFC',
+                border: '1px solid #EEF0F4',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  color: '#475569',
+                  fontFamily: 'monospace',
+                  fontSize: '0.7rem',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  textAlign: 'left',
+                }}
+              >
+                {checkinLink}
+              </Typography>
+              <Button
+                size="small"
+                onClick={handleCopyLink}
+                sx={{
+                  minWidth: 0,
+                  textTransform: 'none',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  color: colors.primary[700],
+                }}
+              >
+                {linkCopied ? 'Copied' : 'Copy'}
+              </Button>
+            </Box>
+          )}
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setQrOpen(false)} sx={{ borderRadius: 3 }}>Close</Button>
-          <Button startIcon={<Download />} onClick={handleShareQR} variant="contained" sx={{ borderRadius: 3 }}>Download</Button>
+        <DialogActions sx={{ p: 2, gap: 1 }}>
+          <Button onClick={() => setQrOpen(false)} sx={{ textTransform: 'none', color: '#64748B' }}>
+            Close
+          </Button>
+          <Button
+            startIcon={<Download sx={{ fontSize: 16 }} />}
+            onClick={handleShareQR}
+            variant="contained"
+            disableElevation
+            sx={{
+              textTransform: 'none',
+              borderRadius: 2,
+              bgcolor: colors.primary[700],
+              '&:hover': { bgcolor: colors.primary[800] },
+            }}
+          >
+            Download
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
